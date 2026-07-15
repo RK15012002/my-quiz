@@ -279,6 +279,7 @@
 const state = {
   title: 'Untitled Quiz',
   questions: [],
+  sourceQuestions: [],
   index: 0,
   answers: {},
   checked: {},
@@ -346,6 +347,8 @@ const I18N = {
     help_title: "Question File Format",
     help_json_title: "JSON (recommended)",
     help_json_hint: 'Empty "options": [] makes it a typed short-answer question instead of multiple choice. "answer" must match an option exactly for MCQ. "explanation" is optional and appears on the result screen.',
+    help_bilingual_title: "Bilingual JSON (English + Hindi in one file)",
+    help_bilingual_hint: 'Use "_en"/"_hi" suffixed fields to give both languages per question. The app shows whichever matches the language toggle. options_en[i] and options_hi[i] must be the same choice, just translated. Plain "question"/"options"/"answer" (no suffix) still works as English-only.',
     help_csv_title: "CSV / Excel (easy to build in Excel)",
     help_csv_hint: 'Leave option columns blank for a typed-answer question. The explanation column is optional. Save as "CSV UTF-8" from Excel, or upload the .xlsx file directly — both work.',
     help_history_title: "Checking results later",
@@ -470,6 +473,8 @@ const I18N = {
     help_title: "प्रश्न फ़ाइल फॉर्मेट",
     help_json_title: "JSON (अनुशंसित)",
     help_json_hint: 'खाली "options": [] टाइप किए गए लघु-उत्तर प्रश्न को बहुविकल्पीय के बजाय बनाता है। MCQ के लिए "answer" को किसी एक विकल्प से बिल्कुल मेल खाना चाहिए। "explanation" वैकल्पिक है और परिणाम स्क्रीन पर दिखाई देता है।',
+    help_bilingual_title: "द्विभाषी JSON (एक फ़ाइल में अंग्रेज़ी + हिन्दी)",
+    help_bilingual_hint: 'हर प्रश्न के लिए दोनों भाषाएं देने के लिए "_en"/"_hi" प्रत्यय वाले फ़ील्ड इस्तेमाल करें। ऐप भाषा टॉगल के अनुसार सही फ़ील्ड दिखाता है। options_en[i] और options_hi[i] एक ही विकल्प होना चाहिए, बस अनुवादित। बिना प्रत्यय वाला सादा "question"/"options"/"answer" अब भी केवल-अंग्रेज़ी के रूप में काम करता है।',
     help_csv_title: "CSV / Excel (Excel में बनाना आसान)",
     help_csv_hint: 'टाइप किए गए उत्तर वाले प्रश्न के लिए विकल्प कॉलम खाली छोड़ें। व्याख्या कॉलम वैकल्पिक है। Excel से "CSV UTF-8" के रूप में सेव करें, या .xlsx फ़ाइल सीधे अपलोड करें — दोनों काम करते हैं।',
     help_history_title: "बाद में परिणाम जांचना",
@@ -765,7 +770,7 @@ fileInput.addEventListener('change', (e) => {
       }
       if (!qs || !qs.length){ alert(t('no_questions_in_file')); return; }
       state.title = title;
-      state.questions = qs;
+      state.sourceQuestions = qs;
       startQuiz();
     } catch (err){
       alert(t('error_reading_file', { msg: err.message }));
@@ -923,6 +928,23 @@ function renderHelp(){
 }</div>
       <p class="hint">${t('help_json_hint')}</p>
 
+      <div class="eyebrow mt-24">${t('help_bilingual_title')}</div>
+      <div class="help-text">{
+  "questions": [
+    {
+      "question_en": "Capital of France?",
+      "question_hi": "फ़्रांस की राजधानी क्या है?",
+      "options_en": ["Paris","London","Berlin","Madrid"],
+      "options_hi": ["पेरिस","लंदन","बर्लिन","मैड्रिड"],
+      "answer_en": "Paris",
+      "answer_hi": "पेरिस",
+      "explanation_en": "Capital since 987 AD.",
+      "explanation_hi": "987 ईस्वी से राजधानी।"
+    }
+  ]
+}</div>
+      <p class="hint">${t('help_bilingual_hint')}</p>
+
       <div class="eyebrow mt-24">${t('help_csv_title')}</div>
       <div class="help-text">question,option1,option2,option3,option4,answer,explanation
 "Capital of France?",Paris,London,Berlin,Madrid,Paris,"Capital since 987 AD"
@@ -1064,6 +1086,27 @@ function readSettingsFromDOM(){
   saveSettings();
 }
 
+/* ---------------- Bilingual question resolution ----------------
+   A question can be single-language (question/options/answer/explanation)
+   or bilingual using suffixed fields:
+   question_en/question_hi, options_en/options_hi, answer_en/answer_hi, explanation_en/explanation_hi
+   options_en[i] and options_hi[i] must be the same choice, just translated. */
+function localizeQuestion(q, lang){
+  const pick = (key) => {
+    const suf = lang === 'hi' ? '_hi' : '_en';
+    const otherSuf = lang === 'hi' ? '_en' : '_hi';
+    if (q[key + suf] !== undefined) return q[key + suf];
+    if (q[key + otherSuf] !== undefined) return q[key + otherSuf];
+    return q[key];
+  };
+  return {
+    question: pick('question') || '',
+    options: (pick('options') || []).slice(),
+    answer: pick('answer') || '',
+    explanation: pick('explanation') || ''
+  };
+}
+
 function startQuiz(){
   readSettingsFromDOM();
   clearQuestionTimer();
@@ -1077,6 +1120,8 @@ function startQuiz(){
   state.flagged = {};
   state.startedAt = Date.now();
   state.currentAttemptId = 'a_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  // resolve bilingual source questions into the currently selected language
+  state.questions = (state.sourceQuestions || []).map(q => localizeQuestion(q, state.language));
   // shuffle question order (optional)
   if (state.shuffleQuestions){
     for (let i = state.questions.length - 1; i > 0; i--){
@@ -1595,7 +1640,7 @@ document.addEventListener('click', (e) => {
     case 'finish-builder': {
       if (!state.builderQuestions.length){ alert(t('alert_add_question_first')); return; }
       state.title = document.getElementById('builder-title').value.trim() || 'Untitled Quiz';
-      state.questions = state.builderQuestions.slice();
+      state.sourceQuestions = state.builderQuestions.slice();
       startQuiz();
       break;
     }
@@ -1636,7 +1681,7 @@ document.addEventListener('click', (e) => {
     case 'start-daily-quiz': {
       if (!dailyQuiz){ alert(t('todays_quiz_error')); return; }
       state.title = dailyQuiz.title || 'Quiz';
-      state.questions = dailyQuiz.questions;
+      state.sourceQuestions = dailyQuiz.questions;
       startQuiz();
       break;
     }
@@ -1714,7 +1759,7 @@ document.addEventListener('click', (e) => {
       const attempt = window.__currentResultAttempt;
       if (!attempt) return;
       state.title = attempt.title;
-      state.questions = attempt.questions.map(q => ({ question:q.question, options:(q.options||[]).slice(), answer:q.answer, explanation:q.explanation||'' }));
+      state.sourceQuestions = attempt.questions.map(q => ({ question:q.question, options:(q.options||[]).slice(), answer:q.answer, explanation:q.explanation||'' }));
       startQuiz();
       break;
     }
