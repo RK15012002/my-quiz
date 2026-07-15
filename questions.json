@@ -2,22 +2,34 @@
   "title": "Today's Quiz — General Knowledge",
   "questions": [
     {
-      "question": "What is the SI unit of electric current?",
-      "options": ["Volt", "Ampere", "Ohm", "Watt"],
-      "answer": "Ampere",
-      "explanation": "Current is measured in Amperes (A), named after André-Marie Ampère."
+      "question_en": "What is the SI unit of electric current?",
+      "question_hi": "विद्युत धारा की SI इकाई क्या है?",
+      "options_en": ["Volt", "Ampere", "Ohm", "Watt"],
+      "options_hi": ["वोल्ट", "एम्पियर", "ओम", "वाट"],
+      "answer_en": "Ampere",
+      "answer_hi": "एम्पियर",
+      "explanation_en": "Current is measured in Amperes (A), named after André-Marie Ampère.",
+      "explanation_hi": "धारा को एम्पियर (A) में मापा जाता है, जिसका नाम आंद्रे-मैरी एम्पियर के नाम पर रखा गया है।"
     },
     {
-      "question": "RRB stands for Railway Recruitment ____.",
-      "options": ["Bureau", "Board", "Branch", "Body"],
-      "answer": "Board",
-      "explanation": "RRB = Railway Recruitment Board."
+      "question_en": "RRB stands for Railway Recruitment ____.",
+      "question_hi": "RRB का पूरा नाम रेलवे भर्ती ____ है।",
+      "options_en": ["Bureau", "Board", "Branch", "Body"],
+      "options_hi": ["ब्यूरो", "बोर्ड", "शाखा", "निकाय"],
+      "answer_en": "Board",
+      "answer_hi": "बोर्ड",
+      "explanation_en": "RRB = Railway Recruitment Board.",
+      "explanation_hi": "RRB = रेलवे भर्ती बोर्ड।"
     },
     {
-      "question": "Name the capital of India.",
-      "options": [],
-      "answer": "New Delhi",
-      "explanation": "Typed short-answer question — empty options array makes it text-entry instead of MCQ."
+      "question_en": "Name the capital of India.",
+      "question_hi": "भारत की राजधानी का नाम बताइए।",
+      "options_en": [],
+      "options_hi": [],
+      "answer_en": "New Delhi",
+      "answer_hi": "नई दिल्ली",
+      "explanation_en": "Typed short-answer question — empty options array makes it text-entry.",
+      "explanation_hi": "टाइप किया गया लघु-उत्तर प्रश्न — खाली options सरणी इसे टेक्स्ट-एंट्री बनाती है।"
     }
   ]
 }
