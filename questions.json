@@ -1,0 +1,23 @@
+{
+  "title": "Today's Quiz — General Knowledge",
+  "questions": [
+    {
+      "question": "What is the SI unit of electric current?",
+      "options": ["Volt", "Ampere", "Ohm", "Watt"],
+      "answer": "Ampere",
+      "explanation": "Current is measured in Amperes (A), named after André-Marie Ampère."
+    },
+    {
+      "question": "RRB stands for Railway Recruitment ____.",
+      "options": ["Bureau", "Board", "Branch", "Body"],
+      "answer": "Board",
+      "explanation": "RRB = Railway Recruitment Board."
+    },
+    {
+      "question": "Name the capital of India.",
+      "options": [],
+      "answer": "New Delhi",
+      "explanation": "Typed short-answer question — empty options array makes it text-entry instead of MCQ."
+    }
+  ]
+}
