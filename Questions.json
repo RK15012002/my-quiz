@@ -1,0 +1,16 @@
+{
+  "title": "Today's Quiz",
+  "questions": [
+    {
+      "question": "Capital of France?",
+      "options": ["Paris", "London", "Berlin", "Madrid"],
+      "answer": "Paris",
+      "explanation": "Paris has been the capital of France since 987 AD."
+    },
+    {
+      "question": "2 + 2 = ?",
+      "options": [],
+      "answer": "4"
+    }
+  ]
+}
