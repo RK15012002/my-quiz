@@ -8,9 +8,9 @@
       "explanation": "Paris has been the capital of France since 987 AD."
     },
     {
-      "question": "2 + 2 = ?",
+      "question": "2 + 12 = ?",
       "options": [],
-      "answer": "4"
+      "answer": "14"
     }
   ]
 }
