@@ -279,6 +279,7 @@
 const state = {
   title: 'Untitled Quiz',
   questions: [],
+  sourceQuestions: [],
   index: 0,
   answers: {},
   checked: {},
@@ -346,6 +347,8 @@ const I18N = {
     help_title: "Question File Format",
     help_json_title: "JSON (recommended)",
     help_json_hint: 'Empty "options": [] makes it a typed short-answer question instead of multiple choice. "answer" must match an option exactly for MCQ. "explanation" is optional and appears on the result screen.',
+    help_bilingual_title: "Bilingual JSON (English + Hindi in one file)",
+    help_bilingual_hint: 'Use "_en"/"_hi" suffixed fields to give both languages per question. The app shows whichever matches the language toggle. options_en[i] and options_hi[i] must be the same choice, just translated. Plain "question"/"options"/"answer" (no suffix) still works as English-only.',
     help_csv_title: "CSV / Excel (easy to build in Excel)",
     help_csv_hint: 'Leave option columns blank for a typed-answer question. The explanation column is optional. Save as "CSV UTF-8" from Excel, or upload the .xlsx file directly — both work.',
     help_history_title: "Checking results later",
@@ -414,14 +417,4 @@ const I18N = {
     pill_not_attempted: "Not Attempted",
     your_answer: "Your answer:",
     no_answer: "(no answer)",
-    correct_answer_review: "Correct answer:",
-    time_spent: "Time spent:",
-    retake_quiz: "Retake Quiz",
-    retake_this_quiz: "Retake This Quiz",
-    print_pdf: "Print / Save as PDF",
-    export_result: "Export Result (JSON)",
-    view_all_results: "View All Results",
-    home: "Home",
-    no_category: "No questions in this category.",
-    history_eyebrow: "History",
-    history_subtitle: "Every quiz you complete is saved here so y
+    correct_answer_review: "Correct answer
