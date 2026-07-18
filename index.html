@@ -99,16 +99,16 @@
   .option:active{transform:scale(0.995);}
   .option.selected{border-color:var(--pen-blue);box-shadow:0 0 0 1.5px var(--pen-blue) inset;}
   .option.locked{cursor:default;}
-  .option.correct{background:#CFE8D4;border-color:var(--pen-green);box-shadow:0 0 0 1.5px var(--pen-green) inset;}
-  .option.incorrect{background:#F3D3CD;border-color:var(--pen-red);box-shadow:0 0 0 1.5px var(--pen-red) inset;}
+  .option.correct{border-color:var(--pen-green);box-shadow:0 0 0 1.5px var(--pen-green) inset;}
+  .option.incorrect{border-color:var(--pen-red);box-shadow:0 0 0 1.5px var(--pen-red) inset;}
   .bubble{
     width:32px;height:32px;min-width:32px;border-radius:50%;border:2.5px solid var(--graphite);
     display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;
     font-weight:700;font-size:14px;transition:background .15s ease, border-color .15s ease;
   }
   .option.selected .bubble{background:var(--pencil);border-color:var(--graphite);}
-  .option.correct .bubble{background:#fff;border-color:var(--pen-green);}
-  .option.incorrect .bubble{background:#fff;border-color:var(--pen-red);}
+  .option.correct .bubble{background:#CFE8D4;border-color:var(--pen-green);}
+  .option.incorrect .bubble{background:#F3D3CD;border-color:var(--pen-red);}
   .option-text{font-size:15.5px;}
 
   .feedback-msg{margin-top:16px;padding:12px 14px;border-radius:8px;font-weight:700;font-size:14.5px;}
@@ -204,9 +204,6 @@
   }
   [data-theme="dark"] input[type=text],[data-theme="dark"] textarea{background:#2A2A2D;color:var(--graphite);}
   [data-theme="dark"] .modal-overlay{background:rgba(0,0,0,.65);}
-  [data-theme="dark"] .option.correct{background:#274430;}
-  [data-theme="dark"] .option.incorrect{background:#4A2C27;}
-  [data-theme="dark"] .option.correct .bubble,[data-theme="dark"] .option.incorrect .bubble{background:#1B1B1D;}
 
   /* flag / bookmark button */
   .flag-btn{
@@ -269,6 +266,19 @@
   }
   .gear-btn:active{transform:scale(0.95);}
   .lang-toggle{display:flex;gap:8px;margin:10px 0 20px;}
+
+  /* mini language switch (main page) */
+  .home-top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:10px;}
+  .mini-lang-toggle{
+    display:flex;border:1.5px solid var(--line);border-radius:20px;overflow:hidden;flex-shrink:0;
+    font-family:'Space Mono',monospace;
+  }
+  .mini-lang-btn{
+    background:var(--paper-light);border:none;padding:8px 14px;font-size:12.5px;font-weight:700;
+    cursor:pointer;color:var(--graphite-soft);letter-spacing:.5px;
+  }
+  .mini-lang-btn.active{background:var(--pen-blue);color:#fff;}
+  .mini-lang-btn:active{transform:scale(0.97);}
 </style>
 </head>
 <body>
@@ -279,7 +289,6 @@
 const state = {
   title: 'Untitled Quiz',
   questions: [],
-  sourceQuestions: [],
   index: 0,
   answers: {},
   checked: {},
@@ -347,12 +356,12 @@ const I18N = {
     help_title: "Question File Format",
     help_json_title: "JSON (recommended)",
     help_json_hint: 'Empty "options": [] makes it a typed short-answer question instead of multiple choice. "answer" must match an option exactly for MCQ. "explanation" is optional and appears on the result screen.',
-    help_bilingual_title: "Bilingual JSON (English + Hindi in one file)",
-    help_bilingual_hint: 'Use "_en"/"_hi" suffixed fields to give both languages per question. The app shows whichever matches the language toggle. options_en[i] and options_hi[i] must be the same choice, just translated. Plain "question"/"options"/"answer" (no suffix) still works as English-only.',
     help_csv_title: "CSV / Excel (easy to build in Excel)",
     help_csv_hint: 'Leave option columns blank for a typed-answer question. The explanation column is optional. Save as "CSV UTF-8" from Excel, or upload the .xlsx file directly — both work.',
     help_history_title: "Checking results later",
     help_history_hint: 'Every completed quiz is saved automatically under "My Results" on the home screen, so you can review a detailed, textbook-style answer key for any past attempt at any time — even after closing the app.',
+    help_bilingual_title: "Bilingual questions (EN ⇄ हिं toggle)",
+    help_bilingual_hint: 'Add "_en" and "_hi" versions of a column to make a question switch language with the EN/हिं button — e.g. question_en / question_hi, option1_en / option1_hi, answer_en / answer_hi. You can leave a "_hi" column blank for a question and it will just fall back to the English text.',
     close: "Close",
     build_eyebrow: "Build",
     quiz_title: "Quiz title",
@@ -437,8 +446,6 @@ const I18N = {
     no_questions_in_file: "No questions were found in that file.",
     error_reading_file: "Error reading file: {{msg}}",
     settings_icon_label: "Settings",
-    todays_quiz: "Play Today's Quiz",
-    todays_quiz_error: "Could not load today's quiz. Please check your connection and try again.",
   },
   hi: {
     subtitle: "प्रश्न बैंक लोड करें और तुरंत क्विज़ लें,<br>या अपनी खुद की क्विज़ बनाएं।",
@@ -473,12 +480,12 @@ const I18N = {
     help_title: "प्रश्न फ़ाइल फॉर्मेट",
     help_json_title: "JSON (अनुशंसित)",
     help_json_hint: 'खाली "options": [] टाइप किए गए लघु-उत्तर प्रश्न को बहुविकल्पीय के बजाय बनाता है। MCQ के लिए "answer" को किसी एक विकल्प से बिल्कुल मेल खाना चाहिए। "explanation" वैकल्पिक है और परिणाम स्क्रीन पर दिखाई देता है।',
-    help_bilingual_title: "द्विभाषी JSON (एक फ़ाइल में अंग्रेज़ी + हिन्दी)",
-    help_bilingual_hint: 'हर प्रश्न के लिए दोनों भाषाएं देने के लिए "_en"/"_hi" प्रत्यय वाले फ़ील्ड इस्तेमाल करें। ऐप भाषा टॉगल के अनुसार सही फ़ील्ड दिखाता है। options_en[i] और options_hi[i] एक ही विकल्प होना चाहिए, बस अनुवादित। बिना प्रत्यय वाला सादा "question"/"options"/"answer" अब भी केवल-अंग्रेज़ी के रूप में काम करता है।',
     help_csv_title: "CSV / Excel (Excel में बनाना आसान)",
     help_csv_hint: 'टाइप किए गए उत्तर वाले प्रश्न के लिए विकल्प कॉलम खाली छोड़ें। व्याख्या कॉलम वैकल्पिक है। Excel से "CSV UTF-8" के रूप में सेव करें, या .xlsx फ़ाइल सीधे अपलोड करें — दोनों काम करते हैं।',
     help_history_title: "बाद में परिणाम जांचना",
     help_history_hint: 'हर पूरी की गई क्विज़ होम स्क्रीन पर "मेरे परिणाम" के अंतर्गत स्वतः सेव हो जाती है, ताकि आप किसी भी पिछले प्रयास की विस्तृत उत्तर कुंजी कभी भी देख सकें — ऐप बंद करने के बाद भी।',
+    help_bilingual_title: "द्विभाषी प्रश्न (EN ⇄ हिं टॉगल)",
+    help_bilingual_hint: 'किसी कॉलम के "_en" और "_hi" वर्शन जोड़ें ताकि प्रश्न EN/हिं बटन के साथ भाषा बदल सके — जैसे question_en / question_hi, option1_en / option1_hi, answer_en / answer_hi। किसी प्रश्न के लिए "_hi" कॉलम खाली छोड़ा जा सकता है, वह अंग्रेज़ी टेक्स्ट पर वापस आ जाएगा।',
     close: "बंद करें",
     build_eyebrow: "निर्माण",
     quiz_title: "क्विज़ शीर्षक",
@@ -563,8 +570,6 @@ const I18N = {
     no_questions_in_file: "उस फ़ाइल में कोई प्रश्न नहीं मिला।",
     error_reading_file: "फ़ाइल पढ़ने में त्रुटि: {{msg}}",
     settings_icon_label: "सेटिंग्स",
-    todays_quiz: "आज की क्विज़ खेलें",
-    todays_quiz_error: "आज की क्विज़ लोड नहीं हो सकी। कृपया अपना कनेक्शन जांचें और फिर से प्रयास करें।",
   }
 };
 function t(key, params){
@@ -708,13 +713,20 @@ function parseCSV(text){
 
 /* Recognizes English and Hindi column headers, e.g. "प्रश्न" for "question" */
 const HEADER_ALIASES = {
-  question: ['question','ques','प्रश्न'],
-  answer: ['answer','ans','उत्तर'],
-  explanation: ['explanation','explain','व्याख्या'],
-  option1: ['option1','opt1','विकल्प1'],
-  option2: ['option2','opt2','विकल्प2'],
-  option3: ['option3','opt3','विकल्प3'],
-  option4: ['option4','opt4','विकल्प4'],
+  question_en: ['question_en','question (en)','ques_en','question','ques'],
+  question_hi: ['question_hi','question (hi)','ques_hi','प्रश्न'],
+  answer_en: ['answer_en','answer (en)','ans_en','answer','ans'],
+  answer_hi: ['answer_hi','answer (hi)','ans_hi','उत्तर'],
+  explanation_en: ['explanation_en','explanation (en)','explain_en','explanation','explain'],
+  explanation_hi: ['explanation_hi','explanation (hi)','explain_hi','व्याख्या'],
+  option1_en: ['option1_en','option1 (en)','opt1_en','option1','opt1'],
+  option1_hi: ['option1_hi','option1 (hi)','opt1_hi','विकल्प1'],
+  option2_en: ['option2_en','option2 (en)','opt2_en','option2','opt2'],
+  option2_hi: ['option2_hi','option2 (hi)','opt2_hi','विकल्प2'],
+  option3_en: ['option3_en','option3 (en)','opt3_en','option3','opt3'],
+  option3_hi: ['option3_hi','option3 (hi)','opt3_hi','विकल्प3'],
+  option4_en: ['option4_en','option4 (en)','opt4_en','option4','opt4'],
+  option4_hi: ['option4_hi','option4 (hi)','opt4_hi','विकल्प4'],
 };
 function findHeaderIndex(headers, key){
   const aliases = HEADER_ALIASES[key] || [key];
@@ -724,22 +736,94 @@ function findHeaderIndex(headers, key){
   }
   return -1;
 }
+/* ---------------- Bilingual question support ---------------- */
+function makeQuestion(en, hi){
+  en = en || {};
+  hi = hi || {};
+  const q = {
+    i18n: {
+      en: { question: en.question || hi.question || '', options: (en.options && en.options.length ? en.options : hi.options) || [], answer: en.answer || hi.answer || '', explanation: en.explanation || hi.explanation || '' },
+      hi: { question: hi.question || en.question || '', options: (hi.options && hi.options.length ? hi.options : en.options) || [], answer: hi.answer || en.answer || '', explanation: hi.explanation || en.explanation || '' },
+    }
+  };
+  localizeQuestion(q, state.language);
+  return q;
+}
+/** Upgrades a legacy flat question ({question,options,answer,explanation} as plain strings/arrays)
+ *  or a nested bilingual one ({question:{en,hi}, ...} or question_en/question_hi keys) into the
+ *  internal {i18n:{en,hi}} shape. Already-normalized questions are returned unchanged. */
+function normalizeQuestionObject(raw){
+  if (!raw) return null;
+  if (raw.i18n && raw.i18n.en) return raw;
+  const pick = (val, lang) => {
+    if (val == null) return undefined;
+    if (typeof val === 'object' && !Array.isArray(val)) return val[lang];
+    return val;
+  };
+  const qEn = pick(raw.question, 'en') ?? raw.question_en;
+  const qHi = pick(raw.question, 'hi') ?? raw.question_hi;
+  const oEn = pick(raw.options, 'en') ?? raw.options_en;
+  const oHi = pick(raw.options, 'hi') ?? raw.options_hi;
+  const aEn = pick(raw.answer, 'en') ?? raw.answer_en;
+  const aHi = pick(raw.answer, 'hi') ?? raw.answer_hi;
+  const eEn = pick(raw.explanation, 'en') ?? raw.explanation_en;
+  const eHi = pick(raw.explanation, 'hi') ?? raw.explanation_hi;
+  return makeQuestion(
+    { question: qEn, options: oEn, answer: aEn, explanation: eEn },
+    { question: qHi, options: oHi, answer: aHi, explanation: eHi }
+  );
+}
+/** Sets q.question/options/answer/explanation (the flat fields the rest of the app renders)
+ *  to the given language, falling back to the other language for any missing field. */
+function localizeQuestion(q, lang){
+  if (!q.i18n) return;
+  const other = lang === 'en' ? 'hi' : 'en';
+  const L = q.i18n[lang] || {};
+  const O = q.i18n[other] || {};
+  q.question = L.question || O.question || '';
+  q.options = ((L.options && L.options.length) ? L.options : (O.options || [])).slice();
+  q.answer = L.answer || O.answer || '';
+  q.explanation = (L.explanation !== undefined && L.explanation !== '') ? L.explanation : (O.explanation || '');
+}
+/** Re-localizes every loaded question to the new language, and remaps any already-selected
+ *  MCQ answer (matched by its old-language text) so the correct option stays highlighted/selected. */
+function relocalizeAllQuestions(lang){
+  state.questions.forEach((q, i) => {
+    if (!q.i18n) return;
+    const oldOptions = (q.options || []).slice();
+    localizeQuestion(q, lang);
+    const given = state.answers[i];
+    if (given && oldOptions.length && q.options && q.options.length){
+      const idx = oldOptions.indexOf(given);
+      if (idx >= 0 && q.options[idx] !== undefined) state.answers[i] = q.options[idx];
+    }
+  });
+}
+
 function rowsToQuestions(rows){
   if (!rows || !rows.length) return [];
   const headers = rows[0].map(h => String(h == null ? '' : h).trim().toLowerCase());
-  const qIdx = findHeaderIndex(headers, 'question');
-  const aIdx = findHeaderIndex(headers, 'answer');
-  const explIdx = findHeaderIndex(headers, 'explanation');
-  const optIdx = [1,2,3,4].map(n => findHeaderIndex(headers, 'option'+n));
+  const qEnIdx = findHeaderIndex(headers, 'question_en');
+  const qHiIdx = findHeaderIndex(headers, 'question_hi');
+  const aEnIdx = findHeaderIndex(headers, 'answer_en');
+  const aHiIdx = findHeaderIndex(headers, 'answer_hi');
+  const eEnIdx = findHeaderIndex(headers, 'explanation_en');
+  const eHiIdx = findHeaderIndex(headers, 'explanation_hi');
+  const oEnIdx = [1,2,3,4].map(n => findHeaderIndex(headers, 'option'+n+'_en'));
+  const oHiIdx = [1,2,3,4].map(n => findHeaderIndex(headers, 'option'+n+'_hi'));
   const out = [];
   for (let r = 1; r < rows.length; r++){
     const row = rows[r] || [];
-    const q = String(row[qIdx] == null ? '' : row[qIdx]).trim();
-    if (!q) continue;
-    const options = optIdx.map(idx => idx >= 0 ? String(row[idx] == null ? '' : row[idx]).trim() : '').filter(Boolean);
-    const answer = String(row[aIdx] == null ? '' : row[aIdx]).trim();
-    const explanation = explIdx >= 0 ? String(row[explIdx] == null ? '' : row[explIdx]).trim() : '';
-    out.push({ question: q, options, answer, explanation });
+    const cell = idx => idx >= 0 ? String(row[idx] == null ? '' : row[idx]).trim() : '';
+    const qEn = cell(qEnIdx), qHi = cell(qHiIdx);
+    if (!qEn && !qHi) continue;
+    const optsEn = oEnIdx.map(cell).filter(Boolean);
+    const optsHi = oHiIdx.map(cell).filter(Boolean);
+    const ansEn = cell(aEnIdx), ansHi = cell(aHiIdx);
+    const explEn = cell(eEnIdx), explHi = cell(eHiIdx);
+    const en = { question: qEn || qHi, options: optsEn.length ? optsEn : optsHi, answer: ansEn || ansHi, explanation: explEn || explHi };
+    const hi = { question: qHi || qEn, options: optsHi.length ? optsHi : optsEn, answer: ansHi || ansEn, explanation: explHi || explEn };
+    out.push(makeQuestion(en, hi));
   }
   return out;
 }
@@ -764,13 +848,13 @@ fileInput.addEventListener('change', (e) => {
         title = file.name.replace(/\.(xlsx|xls)$/i, '');
       } else if (name.endsWith('.json')){
         const data = JSON.parse(reader.result);
-        qs = data.questions; title = data.title || file.name;
+        qs = (data.questions || []).map(normalizeQuestionObject).filter(Boolean); title = data.title || file.name;
       } else {
         qs = csvToQuestions(reader.result); title = file.name;
       }
       if (!qs || !qs.length){ alert(t('no_questions_in_file')); return; }
       state.title = title;
-      state.sourceQuestions = qs;
+      state.questions = qs;
       startQuiz();
     } catch (err){
       alert(t('error_reading_file', { msg: err.message }));
@@ -783,6 +867,15 @@ fileInput.addEventListener('change', (e) => {
 
 function gearButtonHTML(){
   return `<div class="top-bar no-print"><button type="button" class="gear-btn" data-action="open-settings" aria-label="${t('settings_icon_label')}" title="${t('settings_icon_label')}">⚙️</button></div>`;
+}
+
+function miniLangToggleHTML(){
+  return `
+    <div class="mini-lang-toggle no-print" role="group" aria-label="${t('language')}">
+      <button type="button" class="mini-lang-btn ${state.language==='en' ? 'active' : ''}" data-action="set-language" data-lang="en">EN</button>
+      <button type="button" class="mini-lang-btn ${state.language==='hi' ? 'active' : ''}" data-action="set-language" data-lang="hi">हिं</button>
+    </div>
+  `;
 }
 
 function languageSelectorHTML(){
@@ -886,14 +979,16 @@ function renderHome(){
   clearOverallTimer();
   app.innerHTML = `
     <div class="content">
-      ${gearButtonHTML()}
+      <div class="home-top-bar no-print">
+        ${miniLangToggleHTML()}
+        <button type="button" class="gear-btn" data-action="open-settings" aria-label="${t('settings_icon_label')}" title="${t('settings_icon_label')}">⚙️</button>
+      </div>
       <div class="home-hero">
         <span class="stamp">QuizMaster</span>
         <p class="subtitle">${t('subtitle')}</p>
       </div>
       <div class="home-buttons">
-        ${dailyQuiz ? `<button class="btn btn-primary" data-action="start-daily-quiz">${t('todays_quiz')}</button>` : ''}
-        <button class="btn ${dailyQuiz ? 'btn-outline' : 'btn-primary'}" data-action="load-file">${t('load_file')}</button>
+        <button class="btn btn-primary" data-action="load-file">${t('load_file')}</button>
         <button class="btn btn-success" data-action="show-builder">${t('create_quiz')}</button>
         <button class="btn btn-outline" data-action="show-history">${t('my_results')}</button>
         <button class="btn btn-outline" data-action="show-help">${t('file_format_help')}</button>
@@ -928,28 +1023,27 @@ function renderHelp(){
 }</div>
       <p class="hint">${t('help_json_hint')}</p>
 
-      <div class="eyebrow mt-24">${t('help_bilingual_title')}</div>
-      <div class="help-text">{
-  "questions": [
-    {
-      "question_en": "Capital of France?",
-      "question_hi": "फ़्रांस की राजधानी क्या है?",
-      "options_en": ["Paris","London","Berlin","Madrid"],
-      "options_hi": ["पेरिस","लंदन","बर्लिन","मैड्रिड"],
-      "answer_en": "Paris",
-      "answer_hi": "पेरिस",
-      "explanation_en": "Capital since 987 AD.",
-      "explanation_hi": "987 ईस्वी से राजधानी।"
-    }
-  ]
-}</div>
-      <p class="hint">${t('help_bilingual_hint')}</p>
-
       <div class="eyebrow mt-24">${t('help_csv_title')}</div>
       <div class="help-text">question,option1,option2,option3,option4,answer,explanation
 "Capital of France?",Paris,London,Berlin,Madrid,Paris,"Capital since 987 AD"
 "2 + 2 = ?",,,,,4,</div>
       <p class="hint">${t('help_csv_hint')}</p>
+
+      <div class="eyebrow mt-24">${t('help_bilingual_title')}</div>
+      <p class="hint">${t('help_bilingual_hint')}</p>
+      <div class="help-text">question_en,question_hi,option1_en,option1_hi,option2_en,option2_hi,option3_en,option3_hi,option4_en,option4_hi,answer_en,answer_hi,explanation_en,explanation_hi
+"Capital of France?","फ्रांस की राजधानी?",Paris,पेरिस,London,लंदन,Berlin,बर्लिन,Madrid,मैड्रिड,Paris,पेरिस,"Capital since 987 AD","987 ई. से राजधानी"</div>
+      <div class="help-text mt-6">{
+  "title": "Sample Quiz",
+  "questions": [
+    {
+      "question": { "en": "Capital of France?", "hi": "फ्रांस की राजधानी?" },
+      "options": { "en": ["Paris","London","Berlin","Madrid"], "hi": ["पेरिस","लंदन","बर्लिन","मैड्रिड"] },
+      "answer": { "en": "Paris", "hi": "पेरिस" },
+      "explanation": { "en": "Capital since 987 AD", "hi": "987 ई. से राजधानी" }
+    }
+  ]
+}</div>
 
       <div class="eyebrow mt-24">${t('help_history_title')}</div>
       <p class="hint">${t('help_history_hint')}</p>
@@ -1086,27 +1180,6 @@ function readSettingsFromDOM(){
   saveSettings();
 }
 
-/* ---------------- Bilingual question resolution ----------------
-   A question can be single-language (question/options/answer/explanation)
-   or bilingual using suffixed fields:
-   question_en/question_hi, options_en/options_hi, answer_en/answer_hi, explanation_en/explanation_hi
-   options_en[i] and options_hi[i] must be the same choice, just translated. */
-function localizeQuestion(q, lang){
-  const pick = (key) => {
-    const suf = lang === 'hi' ? '_hi' : '_en';
-    const otherSuf = lang === 'hi' ? '_en' : '_hi';
-    if (q[key + suf] !== undefined) return q[key + suf];
-    if (q[key + otherSuf] !== undefined) return q[key + otherSuf];
-    return q[key];
-  };
-  return {
-    question: pick('question') || '',
-    options: (pick('options') || []).slice(),
-    answer: pick('answer') || '',
-    explanation: pick('explanation') || ''
-  };
-}
-
 function startQuiz(){
   readSettingsFromDOM();
   clearQuestionTimer();
@@ -1120,8 +1193,8 @@ function startQuiz(){
   state.flagged = {};
   state.startedAt = Date.now();
   state.currentAttemptId = 'a_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-  // resolve bilingual source questions into the currently selected language
-  state.questions = (state.sourceQuestions || []).map(q => localizeQuestion(q, state.language));
+  // ensure every question (from file, builder, or a retaken history entry) has bilingual i18n data
+  state.questions = state.questions.map(normalizeQuestionObject).filter(Boolean);
   // shuffle question order (optional)
   if (state.shuffleQuestions){
     for (let i = state.questions.length - 1; i > 0; i--){
@@ -1129,16 +1202,23 @@ function startQuiz(){
       [state.questions[i], state.questions[j]] = [state.questions[j], state.questions[i]];
     }
   }
-  // shuffle option order within each question (optional) — doesn't affect scoring, just display order
+  // shuffle option order within each question (optional) — same permutation applied to both
+  // languages so a saved answer still points at the right option after a language switch
   if (state.shuffleOptions){
     state.questions.forEach(q => {
-      if (!q.options || !q.options.length) return;
-      for (let i = q.options.length - 1; i > 0; i--){
+      const enOpts = q.i18n.en.options, hiOpts = q.i18n.hi.options;
+      const len = Math.max(enOpts ? enOpts.length : 0, hiOpts ? hiOpts.length : 0);
+      if (!len) return;
+      const perm = Array.from({length: len}, (_, i) => i);
+      for (let i = perm.length - 1; i > 0; i--){
         const j = Math.floor(Math.random() * (i+1));
-        [q.options[i], q.options[j]] = [q.options[j], q.options[i]];
+        [perm[i], perm[j]] = [perm[j], perm[i]];
       }
+      if (enOpts && enOpts.length === len) q.i18n.en.options = perm.map(idx => enOpts[idx]);
+      if (hiOpts && hiOpts.length === len) q.i18n.hi.options = perm.map(idx => hiOpts[idx]);
     });
   }
+  state.questions.forEach(q => localizeQuestion(q, state.language));
   if (state.overallTimerEnabled) state.overallTimeLeft = state.overallTimeMinutes * 60;
   renderQuestion();
   if (state.overallTimerEnabled) startOverallTimer();
@@ -1201,7 +1281,7 @@ function renderQuestion(){
   } else {
     answerBlock = `<input type="text" id="text-answer" ${locked ? 'disabled' : ''} placeholder="${escapeAttr(t('text_answer_placeholder'))}" value="${escapeAttr(savedAnswer || '')}">`;
     if (isChecked){
-      const correct = (savedAnswer || '').trim().toLowerCase() === q.answer.trim().toLowerCase();
+      const correct = answerMatches(savedAnswer, q);
       feedbackBlock = `<div class="feedback-msg ${correct ? 'feedback-correct' : 'feedback-wrong'}">${correct ? t('correct_feedback') : t('incorrect_feedback', {answer: escapeHtml(q.answer)})}</div>`;
     } else if (isTimedOut){
       feedbackBlock = `<div class="feedback-msg feedback-locked">${t('time_up')}</div>`;
@@ -1219,7 +1299,10 @@ function renderQuestion(){
 
   app.innerHTML = `
     <div class="content">
-      ${gearButtonHTML()}
+      <div class="home-top-bar no-print">
+        ${miniLangToggleHTML()}
+        <button type="button" class="gear-btn" data-action="open-settings" aria-label="${t('settings_icon_label')}" title="${t('settings_icon_label')}">⚙️</button>
+      </div>
       <div class="eyebrow">${escapeHtml(state.title)}</div>
       <div class="progress-track"><div class="progress-fill" style="width:${pct}%;"></div></div>
       <div class="meta-row">
@@ -1540,6 +1623,16 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 function escapeAttr(str){ return escapeHtml(str); }
+function answerMatches(given, q){
+  const g = (given || '').trim().toLowerCase();
+  if (!g) return false;
+  const candidates = [q.answer];
+  if (q.i18n){
+    if (q.i18n.en && q.i18n.en.answer) candidates.push(q.i18n.en.answer);
+    if (q.i18n.hi && q.i18n.hi.answer) candidates.push(q.i18n.hi.answer);
+  }
+  return candidates.some(c => c && c.trim().toLowerCase() === g);
+}
 function closeModal(){
   const overlay = document.querySelector('.modal-overlay');
   if (overlay) overlay.remove();
@@ -1589,12 +1682,14 @@ document.addEventListener('click', (e) => {
     case 'set-language': {
       const lang = el.getAttribute('data-lang');
       if (lang !== state.language){
+        const wasInSettingsModal = !!document.querySelector('.modal-overlay[data-overlay="settings"]');
         readSettingsFromDOM();
         state.language = lang;
         saveSettings();
+        if (state.questions && state.questions.length) relocalizeAllQuestions(lang);
         closeModal();
         if (rerender) rerender();
-        renderSettingsModal();
+        if (wasInSettingsModal) renderSettingsModal();
       }
       break;
     }
@@ -1640,7 +1735,7 @@ document.addEventListener('click', (e) => {
     case 'finish-builder': {
       if (!state.builderQuestions.length){ alert(t('alert_add_question_first')); return; }
       state.title = document.getElementById('builder-title').value.trim() || 'Untitled Quiz';
-      state.sourceQuestions = state.builderQuestions.slice();
+      state.questions = state.builderQuestions.slice();
       startQuiz();
       break;
     }
@@ -1655,7 +1750,7 @@ document.addEventListener('click', (e) => {
       finalizeQuestionTime(state.index);
       const q = state.questions[state.index];
       const given = state.answers[state.index] || '';
-      const isCorrect = given.trim().toLowerCase() === q.answer.trim().toLowerCase();
+      const isCorrect = answerMatches(given, q);
       playSound(isCorrect ? 'correct' : 'wrong');
       renderQuestion();
       break;
@@ -1676,13 +1771,6 @@ document.addEventListener('click', (e) => {
       finalizeQuestionTime(state.index);
       state.index--;
       renderQuestion();
-      break;
-    }
-    case 'start-daily-quiz': {
-      if (!dailyQuiz){ alert(t('todays_quiz_error')); return; }
-      state.title = dailyQuiz.title || 'Quiz';
-      state.sourceQuestions = dailyQuiz.questions;
-      startQuiz();
       break;
     }
     case 'retake-quiz':
@@ -1759,7 +1847,7 @@ document.addEventListener('click', (e) => {
       const attempt = window.__currentResultAttempt;
       if (!attempt) return;
       state.title = attempt.title;
-      state.sourceQuestions = attempt.questions.map(q => ({ question:q.question, options:(q.options||[]).slice(), answer:q.answer, explanation:q.explanation||'' }));
+      state.questions = attempt.questions.map(q => ({ question:q.question, options:(q.options||[]).slice(), answer:q.answer, explanation:q.explanation||'' }));
       startQuiz();
       break;
     }
@@ -1791,24 +1879,9 @@ document.addEventListener('change', (e) => {
   }
 });
 
-let dailyQuiz = null;
-let dailyQuizFailed = false;
-function loadDailyQuiz(){
-  fetch('./questions.json?t=' + Date.now())
-    .then(res => { if (!res.ok) throw new Error('not found'); return res.json(); })
-    .then(data => {
-      if (data && Array.isArray(data.questions) && data.questions.length){
-        dailyQuiz = data;
-        if (rerender === renderHome) renderHome();
-      }
-    })
-    .catch(() => { /* no shared quiz published yet — stay silent, keep manual upload available */ });
-}
-
 loadSettings();
 applyTheme();
 renderHome();
-loadDailyQuiz();
 </script>
 </body>
 </html>
