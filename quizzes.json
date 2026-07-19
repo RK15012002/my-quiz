@@ -1,4 +1,5 @@
 [
   { "title": "General Knowledge", "file": "questions.json" },
-  { "title": "Physics Frequency", "file": "physics_frequency.json" }
+  { "title": "Physics Frequency", "file": "physics_frequency.json" },
+  { "title": "States & capital", "file": "states.json" }
 ]
