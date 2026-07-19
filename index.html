@@ -261,7 +261,7 @@
   }
 
   /* gear icon / settings */
-  .top-bar{display:flex;justify-content:flex-end;margin-bottom:6px;}
+  .top-bar{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:6px;}
   .gear-btn{
     background:var(--paper-light);border:1.5px solid var(--line);border-radius:50%;
     width:42px;height:42px;font-size:19px;cursor:pointer;color:var(--graphite);
@@ -276,9 +276,22 @@
 <input type="file" id="file-input" accept=".json,.csv,.xlsx,.xls">
 
 <script>
+/* ============================================================
+   OPTIONAL BACKEND (Google Apps Script) — for centralized results
+   and real (server-side) mobile-number access control.
+
+   Leave blank to run fully offline (registration is still collected
+   and shown/exported locally, but only on each attendee's own device).
+
+   To enable: deploy the companion Apps Script (see setup guide),
+   copy its Web App URL, and paste it below.
+   ============================================================ */
+const APPS_SCRIPT_URL = ''; // e.g. 'https://script.google.com/macros/s/XXXXX/exec'
+
 const state = {
   title: 'Untitled Quiz',
   questions: [],
+  questionMeta: [],
   sourceQuestions: [],
   index: 0,
   answers: {},
@@ -310,6 +323,7 @@ const state = {
   language: 'en',
   startedAt: null,
   currentAttemptId: null,
+  attendee: { name: '', mobile: '', email: '' },
 };
 
 /* ---------------- i18n (English / Hindi) ---------------- */
@@ -349,6 +363,17 @@ const I18N = {
     help_json_hint: 'Empty "options": [] makes it a typed short-answer question instead of multiple choice. "answer" must match an option exactly for MCQ. "explanation" is optional and appears on the result screen.',
     help_bilingual_title: "Bilingual JSON (English + Hindi in one file)",
     help_bilingual_hint: 'Use "_en"/"_hi" suffixed fields to give both languages per question. The app shows whichever matches the language toggle. options_en[i] and options_hi[i] must be the same choice, just translated. Plain "question"/"options"/"answer" (no suffix) still works as English-only.',
+    registration_title: "Before you start",
+    registration_hint: "Enter your details so your score can be recorded.",
+    registration_name: "Full name",
+    registration_name_placeholder: "e.g. Rahul Sharma",
+    registration_mobile: "Mobile number",
+    registration_mobile_placeholder: "10-digit mobile number",
+    registration_email: "Email (optional)",
+    registration_email_placeholder: "e.g. you@example.com",
+    registration_error: "Please enter your name and a valid 10-digit mobile number.",
+    registration_continue: "Continue to Quiz",
+    access_denied: "Access denied for this mobile number.",
     help_csv_title: "CSV / Excel (easy to build in Excel)",
     help_csv_hint: 'Leave option columns blank for a typed-answer question. The explanation column is optional. Save as "CSV UTF-8" from Excel, or upload the .xlsx file directly — both work.',
     help_history_title: "Checking results later",
@@ -436,6 +461,8 @@ const I18N = {
     confirm_clear_history: "Clear all saved results? This cannot be undone.",
     no_questions_in_file: "No questions were found in that file.",
     error_reading_file: "Error reading file: {{msg}}",
+    choose_quiz_title: "Choose a Quiz",
+    quiz_load_error: "Could not load this quiz: {{msg}}",
     settings_icon_label: "Settings",
     todays_quiz: "Play Today's Quiz",
     todays_quiz_error: "Could not load today's quiz. Please check your connection and try again.",
@@ -475,6 +502,17 @@ const I18N = {
     help_json_hint: 'खाली "options": [] टाइप किए गए लघु-उत्तर प्रश्न को बहुविकल्पीय के बजाय बनाता है। MCQ के लिए "answer" को किसी एक विकल्प से बिल्कुल मेल खाना चाहिए। "explanation" वैकल्पिक है और परिणाम स्क्रीन पर दिखाई देता है।',
     help_bilingual_title: "द्विभाषी JSON (एक फ़ाइल में अंग्रेज़ी + हिन्दी)",
     help_bilingual_hint: 'हर प्रश्न के लिए दोनों भाषाएं देने के लिए "_en"/"_hi" प्रत्यय वाले फ़ील्ड इस्तेमाल करें। ऐप भाषा टॉगल के अनुसार सही फ़ील्ड दिखाता है। options_en[i] और options_hi[i] एक ही विकल्प होना चाहिए, बस अनुवादित। बिना प्रत्यय वाला सादा "question"/"options"/"answer" अब भी केवल-अंग्रेज़ी के रूप में काम करता है।',
+    registration_title: "शुरू करने से पहले",
+    registration_hint: "अपनी जानकारी दर्ज करें ताकि आपका स्कोर दर्ज किया जा सके।",
+    registration_name: "पूरा नाम",
+    registration_name_placeholder: "जैसे राहुल शर्मा",
+    registration_mobile: "मोबाइल नंबर",
+    registration_mobile_placeholder: "10 अंकों का मोबाइल नंबर",
+    registration_email: "ईमेल (वैकल्पिक)",
+    registration_email_placeholder: "जैसे you@example.com",
+    registration_error: "कृपया अपना नाम और एक मान्य 10 अंकों का मोबाइल नंबर दर्ज करें।",
+    registration_continue: "क्विज़ पर जाएँ",
+    access_denied: "इस मोबाइल नंबर के लिए पहुँच अस्वीकृत है।",
     help_csv_title: "CSV / Excel (Excel में बनाना आसान)",
     help_csv_hint: 'टाइप किए गए उत्तर वाले प्रश्न के लिए विकल्प कॉलम खाली छोड़ें। व्याख्या कॉलम वैकल्पिक है। Excel से "CSV UTF-8" के रूप में सेव करें, या .xlsx फ़ाइल सीधे अपलोड करें — दोनों काम करते हैं।',
     help_history_title: "बाद में परिणाम जांचना",
@@ -562,6 +600,8 @@ const I18N = {
     confirm_clear_history: "सभी सहेजे गए परिणाम साफ़ करें? इसे पूर्ववत नहीं किया जा सकता।",
     no_questions_in_file: "उस फ़ाइल में कोई प्रश्न नहीं मिला।",
     error_reading_file: "फ़ाइल पढ़ने में त्रुटि: {{msg}}",
+    choose_quiz_title: "एक क्विज़ चुनें",
+    quiz_load_error: "यह क्विज़ लोड नहीं हो सकी: {{msg}}",
     settings_icon_label: "सेटिंग्स",
     todays_quiz: "आज की क्विज़ खेलें",
     todays_quiz_error: "आज की क्विज़ लोड नहीं हो सकी। कृपया अपना कनेक्शन जांचें और फिर से प्रयास करें।",
@@ -581,6 +621,19 @@ let rerender = null;
 
 const SETTINGS_KEY = 'quizmaster_settings_v1';
 const HISTORY_KEY = 'quizmaster_history_v1';
+const ATTENDEE_KEY = 'quizmaster_attendee_v1';
+
+function saveAttendee(){
+  try{ localStorage.setItem(ATTENDEE_KEY, JSON.stringify(state.attendee)); } catch(e){ /* ignore */ }
+}
+function loadAttendee(){
+  try{
+    const raw = localStorage.getItem(ATTENDEE_KEY);
+    if (raw) Object.assign(state.attendee, JSON.parse(raw));
+  } catch(e){ /* ignore */ }
+}
+function validMobile(m){ return /^[0-9]{10}$/.test((m||'').trim()); }
+function validEmail(m){ return !m || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.trim()); }
 
 function saveSettings(){
   try{
@@ -629,7 +682,98 @@ function playSound(kind){
   } catch(e){ /* audio not available — ignore */ }
 }
 
-/* ---------------- Attempt history (persisted results) ---------------- */
+/* ---------------- Attendee registration + gated quiz launch ---------------- */
+let pendingLaunch = null; // holds the startQuiz-triggering function while registration/access modal is open
+
+function renderRegistrationModal(onDone, opts){
+  opts = opts || {};
+  const a = state.attendee;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.setAttribute('data-overlay','registration');
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>${t('registration_title')}</h3>
+      <p class="hint mt-6" style="margin-bottom:16px;">${t('registration_hint')}</p>
+      <label class="field-label">${t('registration_name')}</label>
+      <input type="text" id="reg-name" value="${escapeAttr(a.name||'')}" placeholder="${escapeAttr(t('registration_name_placeholder'))}">
+      <label class="field-label mt-24">${t('registration_mobile')}</label>
+      <input type="text" id="reg-mobile" inputmode="numeric" maxlength="10" value="${escapeAttr(a.mobile||'')}" placeholder="${escapeAttr(t('registration_mobile_placeholder'))}">
+      <label class="field-label mt-24">${t('registration_email')}</label>
+      <input type="text" id="reg-email" value="${escapeAttr(a.email||'')}" placeholder="${escapeAttr(t('registration_email_placeholder'))}">
+      <p id="reg-error" class="hint" style="color:var(--pen-red);display:none;margin-top:10px;"></p>
+      <button class="btn btn-primary mt-24" style="width:100%;" data-action="submit-registration">${t('registration_continue')}</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  pendingLaunch = onDone;
+}
+
+function handleRegistrationSubmit(){
+  const name = document.getElementById('reg-name').value.trim();
+  const mobile = document.getElementById('reg-mobile').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const errEl = document.getElementById('reg-error');
+  if (!name || !validMobile(mobile) || !validEmail(email)){
+    errEl.textContent = t('registration_error');
+    errEl.style.display = 'block';
+    return;
+  }
+  state.attendee = { name, mobile, email };
+  saveAttendee();
+  closeModal();
+  const launch = pendingLaunch;
+  pendingLaunch = null;
+  if (launch) proceedToAccessCheck(launch);
+}
+
+/* Optional server-side (Apps Script) access check by mobile number.
+   Only runs if APPS_SCRIPT_URL is configured; otherwise access is open. */
+function proceedToAccessCheck(launch){
+  if (!APPS_SCRIPT_URL){ launch(); return; }
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'checkAccess', mobile: state.attendee.mobile, quizTitle: state.title || (dailyQuiz && dailyQuiz.title) || '' })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.allowed){ launch(); }
+      else { alert(t('access_denied') + (data && data.reason ? '\n' + data.reason : '')); }
+    })
+    .catch(() => { launch(); /* backend unreachable — fail open so a network hiccup doesn't lock out attendees */ });
+}
+
+/** Wrap any quiz-start action: ensures attendee is registered (once), then starts the quiz. */
+function requireRegistrationThen(launch){
+  if (state.attendee.name && validMobile(state.attendee.mobile)){
+    proceedToAccessCheck(launch);
+  } else {
+    renderRegistrationModal(launch);
+  }
+}
+
+/** Fire-and-forget: sends a completed attempt's score to the Apps Script backend, if configured. */
+function submitResultToBackend(attempt){
+  if (!APPS_SCRIPT_URL) return;
+  const correct = Object.keys(attempt.answers||{}).filter(k => attempt.answers[k] === (attempt.questions[k]||{}).answer).length;
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action: 'submitResult',
+      name: state.attendee.name,
+      mobile: state.attendee.mobile,
+      email: state.attendee.email,
+      quizTitle: attempt.title,
+      totalQuestions: attempt.questions.length,
+      correctCount: correct,
+      date: attempt.date,
+    })
+  }).catch(() => { /* best-effort — local history already has the result */ });
+}
+
+
 function getHistory(){
   try{ return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch(e){ return []; }
 }
@@ -667,6 +811,9 @@ function buildAttemptFromState(){
     id: state.currentAttemptId || ('a_' + Date.now()),
     title: state.title,
     date: new Date().toISOString(),
+    attendeeName: state.attendee.name || '',
+    attendeeMobile: state.attendee.mobile || '',
+    attendeeEmail: state.attendee.email || '',
     questions: state.questions.map(q => ({ question:q.question, options:(q.options||[]).slice(), answer:q.answer, explanation:q.explanation||'' })),
     answers: Object.assign({}, state.answers),
     checked: Object.assign({}, state.checked),
@@ -771,7 +918,7 @@ fileInput.addEventListener('change', (e) => {
       if (!qs || !qs.length){ alert(t('no_questions_in_file')); return; }
       state.title = title;
       state.sourceQuestions = qs;
-      startQuiz();
+      requireRegistrationThen(startQuiz);
     } catch (err){
       alert(t('error_reading_file', { msg: err.message }));
     }
@@ -782,7 +929,13 @@ fileInput.addEventListener('change', (e) => {
 });
 
 function gearButtonHTML(){
-  return `<div class="top-bar no-print"><button type="button" class="gear-btn" data-action="open-settings" aria-label="${t('settings_icon_label')}" title="${t('settings_icon_label')}">⚙️</button></div>`;
+  return `<div class="top-bar no-print">
+    <div class="mini-lang-toggle" role="group" aria-label="${t('language')}">
+      <button type="button" class="mini-lang-btn ${state.language==='en' ? 'active' : ''}" data-action="quick-set-language" data-lang="en">EN</button>
+      <button type="button" class="mini-lang-btn ${state.language==='hi' ? 'active' : ''}" data-action="quick-set-language" data-lang="hi">हिं</button>
+    </div>
+    <button type="button" class="gear-btn" data-action="open-settings" aria-label="${t('settings_icon_label')}" title="${t('settings_icon_label')}">⚙️</button>
+  </div>`;
 }
 
 function languageSelectorHTML(){
@@ -884,6 +1037,15 @@ function renderHome(){
   rerender = renderHome;
   clearQuestionTimer();
   clearOverallTimer();
+  const hasList = quizList && quizList.length;
+  const listHTML = hasList ? `
+    <div class="card perforated mt-24">
+      <div class="eyebrow">${t('choose_quiz_title')}</div>
+      <div class="home-buttons" style="margin-top:12px;">
+        ${quizList.map(item => `<button class="btn btn-primary" data-action="start-listed-quiz" data-file="${escapeAttr(item.file)}" data-title="${escapeAttr(item.title || item.file)}">${escapeHtml(item.title || item.file)}</button>`).join('')}
+      </div>
+    </div>
+  ` : '';
   app.innerHTML = `
     <div class="content">
       ${gearButtonHTML()}
@@ -891,17 +1053,18 @@ function renderHome(){
         <span class="stamp">QuizMaster</span>
         <p class="subtitle">${t('subtitle')}</p>
       </div>
-      <div class="home-buttons">
-        ${dailyQuiz ? `<button class="btn btn-primary" data-action="start-daily-quiz">${t('todays_quiz')}</button>` : ''}
-        <button class="btn ${dailyQuiz ? 'btn-outline' : 'btn-primary'}" data-action="load-file">${t('load_file')}</button>
+      ${listHTML}
+      <div class="home-buttons ${hasList ? 'mt-24' : ''}">
+        ${!hasList && dailyQuiz ? `<button class="btn btn-primary" data-action="start-daily-quiz">${t('todays_quiz')}</button>` : ''}
+        <button class="btn ${(hasList || dailyQuiz) ? 'btn-outline' : 'btn-primary'}" data-action="load-file">${t('load_file')}</button>
         <button class="btn btn-success" data-action="show-builder">${t('create_quiz')}</button>
         <button class="btn btn-outline" data-action="show-history">${t('my_results')}</button>
         <button class="btn btn-outline" data-action="show-help">${t('file_format_help')}</button>
       </div>
-      ${dailyQuizFailed && !dailyQuiz ? `
+      ${dailyQuizFailed && !dailyQuiz && !hasList ? `
       <p class="hint center-text mt-24" style="opacity:.75;">
         No auto-loaded quiz found (${escapeHtml(dailyQuizError || '')}).<br>
-        Place a <code>questions.json</code> file in the same folder as this page.
+        Place a <code>questions.json</code> or <code>quizzes.json</code> file in the same folder as this page.
       </p>` : ''}
     </div>
   `;
@@ -1112,6 +1275,17 @@ function localizeQuestion(q, lang){
   };
 }
 
+/* Same as localizeQuestion, but reorders options using a fixed permutation of
+   original indices, so switching language mid-quiz never reshuffles options
+   or changes question order — only the displayed text changes. */
+function localizeQuestionOrdered(q, lang, optionOrder){
+  const base = localizeQuestion(q, lang);
+  if (optionOrder && optionOrder.length && base.options.length){
+    base.options = optionOrder.map(i => base.options[i]);
+  }
+  return base;
+}
+
 function startQuiz(){
   readSettingsFromDOM();
   clearQuestionTimer();
@@ -1125,25 +1299,30 @@ function startQuiz(){
   state.flagged = {};
   state.startedAt = Date.now();
   state.currentAttemptId = 'a_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-  // resolve bilingual source questions into the currently selected language
-  state.questions = (state.sourceQuestions || []).map(q => localizeQuestion(q, state.language));
-  // shuffle question order (optional)
+
+  // Build a fixed per-quiz meta: which source question in which order, and a
+  // fixed option permutation per question. This stays constant regardless of
+  // language, so switching EN/हिं mid-quiz never reshuffles anything.
+  let srcQuestions = (state.sourceQuestions || []).slice();
   if (state.shuffleQuestions){
-    for (let i = state.questions.length - 1; i > 0; i--){
+    for (let i = srcQuestions.length - 1; i > 0; i--){
       const j = Math.floor(Math.random() * (i+1));
-      [state.questions[i], state.questions[j]] = [state.questions[j], state.questions[i]];
+      [srcQuestions[i], srcQuestions[j]] = [srcQuestions[j], srcQuestions[i]];
     }
   }
-  // shuffle option order within each question (optional) — doesn't affect scoring, just display order
-  if (state.shuffleOptions){
-    state.questions.forEach(q => {
-      if (!q.options || !q.options.length) return;
-      for (let i = q.options.length - 1; i > 0; i--){
+  state.questionMeta = srcQuestions.map(q => {
+    const optCount = (q.options_en || q.options_hi || q.options || []).length;
+    let order = Array.from({length: optCount}, (_, i) => i);
+    if (state.shuffleOptions && optCount){
+      for (let i = order.length - 1; i > 0; i--){
         const j = Math.floor(Math.random() * (i+1));
-        [q.options[i], q.options[j]] = [q.options[j], q.options[i]];
+        [order[i], order[j]] = [order[j], order[i]];
       }
-    });
-  }
+    }
+    return { src: q, optionOrder: order };
+  });
+  state.questions = state.questionMeta.map(m => localizeQuestionOrdered(m.src, state.language, m.optionOrder));
+
   if (state.overallTimerEnabled) state.overallTimeLeft = state.overallTimeMinutes * 60;
   renderQuestion();
   if (state.overallTimerEnabled) startOverallTimer();
@@ -1407,6 +1586,7 @@ function renderResults(){
   clearOverallTimer();
   const attempt = buildAttemptFromState();
   saveAttemptToHistory(attempt);
+  submitResultToBackend(attempt);
   renderResultView(attempt, 'all', { fromHistory:false });
 }
 
@@ -1579,6 +1759,9 @@ document.addEventListener('click', (e) => {
     case 'close-modal':
       closeModal();
       break;
+    case 'submit-registration':
+      handleRegistrationSubmit();
+      break;
     case 'go-home':
       renderHome();
       break;
@@ -1601,6 +1784,34 @@ document.addEventListener('click', (e) => {
         if (rerender) rerender();
         renderSettingsModal();
       }
+      break;
+    }
+    case 'quick-set-language': {
+      const lang = el.getAttribute('data-lang');
+      if (lang === state.language) break;
+      const oldQuestions = state.questions;
+      state.language = lang;
+      saveSettings();
+      if (state.questionMeta && state.questionMeta.length && oldQuestions && oldQuestions.length === state.questionMeta.length){
+        // Quiz in progress: recompute text only, same question order & same option order.
+        const newQuestions = state.questionMeta.map(m => localizeQuestionOrdered(m.src, lang, m.optionOrder));
+        // Carry forward any already-selected MCQ answers by translating them via option position.
+        Object.keys(state.answers).forEach(key => {
+          const i = Number(key);
+          const oldQ = oldQuestions[i];
+          const newQ = newQuestions[i];
+          if (!oldQ || !newQ) return;
+          const given = state.answers[i];
+          if (!given) return;
+          if (oldQ.options && oldQ.options.length){
+            const k = oldQ.options.indexOf(given);
+            if (k !== -1) state.answers[i] = newQ.options[k];
+          }
+          // short-answer (typed) responses are left as typed — usually numeric/unchanged.
+        });
+        state.questions = newQuestions;
+      }
+      if (rerender) rerender();
       break;
     }
     case 'open-add-question':
@@ -1646,7 +1857,7 @@ document.addEventListener('click', (e) => {
       if (!state.builderQuestions.length){ alert(t('alert_add_question_first')); return; }
       state.title = document.getElementById('builder-title').value.trim() || 'Untitled Quiz';
       state.sourceQuestions = state.builderQuestions.slice();
-      startQuiz();
+      requireRegistrationThen(startQuiz);
       break;
     }
     case 'select-option': {
@@ -1687,7 +1898,26 @@ document.addEventListener('click', (e) => {
       if (!dailyQuiz){ alert(t('todays_quiz_error')); return; }
       state.title = dailyQuiz.title || 'Quiz';
       state.sourceQuestions = dailyQuiz.questions;
-      startQuiz();
+      requireRegistrationThen(startQuiz);
+      break;
+    }
+    case 'start-listed-quiz': {
+      const file = el.getAttribute('data-file');
+      const fallbackTitle = el.getAttribute('data-title') || file;
+      fetch('./' + file + '?t=' + Date.now())
+        .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
+        .then(text => {
+          let data;
+          try { data = JSON.parse(text); }
+          catch(e){ throw new Error('Invalid JSON in ' + file); }
+          if (!data || !Array.isArray(data.questions) || !data.questions.length){
+            throw new Error('No questions found in ' + file);
+          }
+          state.title = data.title || fallbackTitle;
+          state.sourceQuestions = data.questions;
+          requireRegistrationThen(startQuiz);
+        })
+        .catch(err => alert(t('quiz_load_error', { msg: err.message })));
       break;
     }
     case 'retake-quiz':
@@ -1823,10 +2053,38 @@ function loadDailyQuiz(){
     });
 }
 
+/* Multi-quiz mode: looks for a "quizzes.json" manifest listing several
+   question files, e.g. [{"title":"GK Set 1","file":"gk1.json"}, ...].
+   If found, the home screen shows one button per quiz. If not found,
+   falls back to the older single "questions.json" auto-load behavior. */
+let quizList = null;
+function loadQuizManifest(){
+  fetch('./quizzes.json?t=' + Date.now())
+    .then(res => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.text();
+    })
+    .then(text => {
+      let data;
+      try { data = JSON.parse(text); }
+      catch(e){ throw new Error('quizzes.json is not valid JSON'); }
+      if (!Array.isArray(data) || !data.length || !data.every(d => d && d.file)){
+        throw new Error('quizzes.json must be an array of {"title":..., "file":...}');
+      }
+      quizList = data;
+      if (rerender === renderHome) renderHome();
+    })
+    .catch(() => {
+      // No manifest published — fall back to legacy single-file auto-load.
+      loadDailyQuiz();
+    });
+}
+
 loadSettings();
+loadAttendee();
 applyTheme();
 renderHome();
-loadDailyQuiz();
+loadQuizManifest();
 </script>
 </body>
 </html>
